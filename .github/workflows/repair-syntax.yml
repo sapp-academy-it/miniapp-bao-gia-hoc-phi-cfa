@@ -1,0 +1,50 @@
+name: Repair JavaScript syntax
+on:
+  push:
+    branches: [fix-trang-trang]
+permissions:
+  contents: write
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix-trang-trang
+      - name: Sửa dấu ngoặc thiếu và kiểm tra cú pháp
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+          lines = text.splitlines()
+          matches = [i for i, line in enumerate(lines) if line.startswith('function renderRateTable(')]
+          if len(matches) != 1:
+              raise SystemExit(f'Không tìm thấy đúng một hàm renderRateTable: {len(matches)}')
+          index = matches[0]
+          line = lines[index]
+          if not line.endswith('}'):
+              raise SystemExit('Dòng renderRateTable không kết thúc như dự kiến')
+          lines[index] = line[:-1] + ')' + line[-1]
+          path.write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+          html = path.read_text(encoding='utf-8')
+          scripts = re.findall(r'<script>([\s\S]*?)</script>', html)
+          if len(scripts) != 1:
+              raise SystemExit(f'Số khối script không đúng: {len(scripts)}')
+          Path('/tmp/app.js').write_text(scripts[0], encoding='utf-8')
+          PY
+          node --check /tmp/app.js
+      - name: Ghi bản sửa vào nhánh
+        shell: bash
+        run: |
+          rm .github/workflows/repair-syntax.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/repair-syntax.yml
+          git commit -m "fix: sửa lỗi cú pháp khiến trang trắng"
+          git push origin HEAD:fix-trang-trang
