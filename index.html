@@ -54,7 +54,54 @@ function renderDates(){return h('section',{class:'card'},sectionHead('Thời gia
 function renderDiscounts(){return h('section',{class:'card'},sectionHead('Ưu đãi','Điều kiện bổ sung'),h('div',{class:'switch-row'},checkbox('Đăng ký theo nhóm',state.quote.group,e=>{state.quote.group=e.target.checked;renderApp()}),h('span',{class:'pill'},fmtVnd(state.policy.groupAmount))),h('div',{class:'switch-row'},checkbox('Chỉ bán học phí gốc khi đăng ký 1 Level',state.quote.originalOnly,e=>{state.quote.originalOnly=e.target.checked;renderApp()}),h('span',{class:'pill'},state.quote.originalOnly?'Đang bật':'Đang tắt')),h('div',{class:'special-grid mt'},field('Học bổng thành tích – Nhánh A',select(state.quote.scholarship,[['','Không áp dụng'],...state.policy.scholarship.map(x=>[x.id,`${x.label} · ${fmtPercent(x.rate)}`])],e=>{state.quote.scholarship=e.target.value;renderApp()})),field('Đối tác và cộng đồng – Nhánh B',select(state.quote.partner,[['','Không áp dụng'],...state.policy.partner.map(x=>[x.id,`${x.label} · ${fmtPercent(x.rate)}`])],e=>{state.quote.partner=e.target.value;renderApp()}))),h('p',{class:'muted mt'},'Nếu chọn cả hai nhánh, trang tự dùng phương án có học phí thấp hơn.'))}
 function zaloText(r){const lines=['BÁO GIÁ HỌC PHÍ CFA – SAPP ACADEMY',state.quote.student.name?`Học viên: ${state.quote.student.name}`:'',`Ngày báo giá: ${fmtDate(state.quote.quoteDate)}`,`Lớp đầu tiên: ${r.first?.code||'—'} · Khai giảng ${fmtDate(r.first?.opening_at)}`,'',...r.items.map(x=>`Level ${x.level} · ${MODE_LABEL[x.mode]||x.mode}${x.mode==='OFFLINE'?` · ${x.region}`:''}: ${fmtVnd(x.price)}`),'',`Tổng học phí gốc: ${fmtVnd(r.base)}`,...r.parts.map(x=>`- ${x.label}: ${fmtVnd(x.amount)}`),`Tổng ưu đãi: ${fmtVnd(r.saving)}`,`HỌC PHÍ CUỐI CÙNG: ${fmtVnd(r.final)}`,`Ngày hoàn tất học phí: ${fmtDate(state.quote.completionDate)}`,'',state.advisor.name?`Tư vấn viên: ${state.advisor.name}`:'',state.advisor.phone?`Điện thoại: ${state.advisor.phone}`:'',state.advisor.email?`Email: ${state.advisor.email}`:''];return lines.filter((x,i,a)=>x!==''||a[i-1]!=='').join('\n').trim()}
 function renderResult(){const r=computeQuote(),notices=[...r.errors.map(x=>h('div',{class:'callout callout-danger'},x)),...r.warnings.map(x=>h('div',{class:'callout callout-warning'},x))];return h('aside',{class:'card card-accent quote'},h('p',{class:'eyebrow'},'Phiếu báo giá'),h('h2',{},state.quote.student.name||'Học viên CFA'),h('span',{class:'accent'}),h('p',{class:'muted mt'},`${r.first?.code||'Chưa chọn lớp'} · ${fmtDate(r.first?.opening_at)}`),notices.length?h('div',{class:'notice-list'},...notices):null,h('ul',{class:'breakdown'},...r.items.map(x=>h('li',{},h('span',{},`Học phí gốc Level ${x.level}`),h('strong',{},fmtVnd(x.price)))),h('li',{},h('span',{},'Tổng học phí gốc'),h('strong',{},fmtVnd(r.base))),...r.parts.map(x=>h('li',{},h('span',{},x.label),h('strong',{class:'saving'},`− ${fmtVnd(x.amount)}`))),r.notApplied>0?h('li',{},h('span',{},`Phần vượt trần ${fmtPercent(r.cap)} không áp dụng`),h('strong',{},fmtVnd(r.notApplied))):null),h('div',{class:'quote-total'},h('span',{},r.scenario),h('strong',{},fmtVnd(r.final)),h('span',{},`Tiết kiệm ${fmtVnd(r.saving)}`)),h('p',{class:'muted'},`Hoàn tất học phí: ${fmtDate(state.quote.completionDate)}`),h('button',{class:'btn btn-primary',type:'button',disabled:r.errors.length>0,onclick:async()=>{const text=zaloText(r);try{await navigator.clipboard.writeText(text);state.copyMessage='Đã sao chép nội dung gửi Zalo.';state.copyFallback=''}catch{state.copyMessage='Trình duyệt chặn sao chép tự động. Hãy sao chép ô bên dưới.';state.copyFallback=text}renderApp();if(state.copyFallback){const area=document.getElementById('copy-area');area?.focus();area?.select()}}},'Sao chép gửi Zalo'),state.copyMessage?h('p',{class:'muted mt',role:'status'},state.copyMessage):null,state.copyFallback?h('textarea',{class:'input copy-area',id:'copy-area',readonly:true,value:state.copyFallback}):null,h('div',{class:'callout callout-info mt internal-only'},'Lưu ý nội bộ: nếu OPS có nhiều mức giá cho cùng Level và hình thức, phải chọn đúng sản phẩm trước khi gửi.'))}
-function numberInput(value,onchange,step='1'){return h('input',{class:'input',type:'number',min:'0',step,value,onchange})}function renderRateTable(title,rows){return h('div',{class:'policy-block'},h('h3',{},title),h('div',{class:'table-wrap'},h('table',{class:'table'},h('thead',{},h('tr',{},h('th',{},'Đối tượng'),h('th',{class:'num'},'Mức (%)'))),h('tbody',{},rows.map(row=>h('tr',{},h('td',{},row.label),h('td',{class:'num'},numberInput(row.rate,e=>{row.rate=Number(e.target.value);renderApp()},'.1')))))))}
+function numberInput(value,onchange,step='1'){return h('input',{class:'input',type:'number',min:'0',step,value,onchange})}function renderRateTable(title, rows) {
+  return h(
+    'div',
+    { class: 'policy-block' },
+    h('h3', {}, title),
+    h(
+      'div',
+      { class: 'table-wrap' },
+      h(
+        'table',
+        { class: 'table' },
+        h(
+          'thead',
+          {},
+          h(
+            'tr',
+            {},
+            h('th', {}, 'Đối tượng'),
+            h('th', { class: 'num' }, 'Mức (%)')
+          )
+        ),
+        h(
+          'tbody',
+          {},
+          rows.map((row) =>
+            h(
+              'tr',
+              {},
+              h('td', {}, row.label),
+              h(
+                'td',
+                { class: 'num' },
+                numberInput(
+                  row.rate,
+                  (event) => {
+                    row.rate = Number(event.target.value)
+                    renderApp()
+                  },
+                  '.1'
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+}
 function renderPolicy(){const p=state.policy,basic=[['Lộ trình 2 Level','route2'],['Lộ trình 3 Level','route3'],['Face to face Hà Nội','hanoi'],['Trần bốn ưu đãi','monthlyCap'],['Trần đối tượng đặc biệt','specialCap']],benefits=p.benefits.length?h('div',{},...p.benefits.map((row,index)=>h('div',{class:'benefit-row'},input(row.package,e=>{row.package=e.target.value},'text',{placeholder:'Tên gói','aria-label':'Tên gói'}),input(row.benefit,e=>{row.benefit=e.target.value},'text',{placeholder:'Bảo lưu, học lại, review bài luận...','aria-label':'Quyền lợi'}),h('button',{class:'btn btn-secondary',type:'button',onclick:()=>{p.benefits.splice(index,1);renderApp()}},'Xóa')))):h('p',{class:'state'},'Bảng đang trống. Chưa tự điền quyền lợi chưa có trong hệ thống.');return h('details',{class:'card internal-only'},h('summary',{},'Cấu hình chính sách và quyền lợi gói học'),h('p',{class:'muted mt'},'Các thay đổi chỉ lưu trên trình duyệt đang dùng. Dữ liệu này chưa có trong OPS API.'),h('div',{class:'config-grid'},field('Áp dụng từ',input(p.effectiveFrom,e=>{p.effectiveFrom=e.target.value;renderApp()},'date')),field('Áp dụng đến',input(p.effectiveTo,e=>{p.effectiveTo=e.target.value;renderApp()},'date')),field('Đóng nhóm mỗi học viên',numberInput(p.groupAmount,e=>{p.groupAmount=Number(e.target.value);renderApp()},'100000'))),h('div',{class:'policy-block'},h('h3',{},'Chính sách chung'),h('div',{class:'table-wrap'},h('table',{class:'table'},h('thead',{},h('tr',{},h('th',{},'Khoản chính sách'),h('th',{class:'num'},'Mức (%)'))),h('tbody',{},basic.map(([label,key])=>h('tr',{},h('td',{},label),h('td',{class:'num'},numberInput(p[key],e=>{p[key]=Number(e.target.value);renderApp()},'.1')))))))),h('div',{class:'policy-block'},h('h3',{},'Mốc đăng ký sớm'),h('div',{class:'table-wrap'},h('table',{class:'table'},h('thead',{},h('tr',{},h('th',{},'Từ số ngày'),h('th',{class:'num'},'Giảm (%)'))),h('tbody',{},p.early.map(tier=>h('tr',{},h('td',{},numberInput(tier.days,e=>{tier.days=Number(e.target.value);renderApp()})),h('td',{class:'num'},numberInput(tier.rate,e=>{tier.rate=Number(e.target.value);renderApp()},'.1')))))))),renderRateTable('Học bổng thành tích – Nhánh A',p.scholarship),renderRateTable('Đối tác và cộng đồng – Nhánh B',p.partner),h('div',{class:'policy-block'},h('h3',{},'Quyền lợi từng gói'),benefits,h('button',{class:'btn btn-secondary mt',type:'button',onclick:()=>{p.benefits.push({package:'',benefit:''});renderApp()}},'Thêm dòng quyền lợi')),h('div',{class:'actions mt'},h('button',{class:'btn btn-primary',type:'button',onclick:()=>{writeLocal('sapp-cfa-policy',p);state.copyMessage='Đã lưu cấu hình trên trình duyệt này.';renderApp()}},'Lưu cấu hình'),h('button',{class:'btn btn-secondary',type:'button',onclick:()=>{if(confirm('Khôi phục chính sách tháng 10/2026 ban đầu?')){state.policy=clone(DEFAULT_POLICY);writeLocal('sapp-cfa-policy',state.policy);renderApp()}}},'Khôi phục mặc định')))}
 function renderQuoteTab(){if(!futureClasses().length)return h('p',{class:'state'},'Chưa có lớp CFA sắp khai giảng.');return h('div',{class:'grid'},h('div',{class:'stack'},renderPeople(),renderPath(),renderDates(),renderDiscounts(),renderPolicy()),renderResult())}
 function renderSchedule(){const all=futureClasses(),regions=[...new Set(all.map(provinceOfClass).filter(x=>x!=='—'))].sort(),rows=all.filter(x=>(!state.schedule.level||String(levelOfClass(x))===state.schedule.level)&&(!state.schedule.mode||x.instruction_mode===state.schedule.mode)&&(!state.schedule.region||provinceOfClass(x)===state.schedule.region));return h('section',{class:'card'},sectionHead('Dữ liệu OPS','Lịch khai giảng CFA',`${rows.length} lớp phù hợp`),h('div',{class:'filters mb'},field('Level',select(state.schedule.level,[['','Tất cả'],['1','Level 1'],['2','Level 2'],['3','Level 3']],e=>{state.schedule.level=e.target.value;renderApp()})),field('Hình thức',select(state.schedule.mode,[['','Tất cả'],...Object.keys(MODE_LABEL).map(m=>[m,MODE_LABEL[m]])],e=>{state.schedule.mode=e.target.value;renderApp()})),field('Khu vực',select(state.schedule.region,[['','Tất cả'],...regions.map(r=>[r,r])],e=>{state.schedule.region=e.target.value;renderApp()}))),rows.length?h('div',{class:'table-wrap'},h('table',{class:'table'},h('thead',{},h('tr',{},h('th',{},'Mã lớp'),h('th',{},'Level'),h('th',{},'Hình thức'),h('th',{},'Khu vực'),h('th',{class:'num'},'Khai giảng'),h('th',{class:'num'},'Tới hạn tụt mốc'))),h('tbody',{},rows.map(x=>h('tr',{},h('td',{},x.code||'—'),h('td',{},`Level ${levelOfClass(x)}`),h('td',{},MODE_LABEL[x.instruction_mode]||x.instruction_mode),h('td',{},provinceOfClass(x)),h('td',{class:'num'},fmtDate(x.opening_at)),h('td',{class:'num'},deadlineStatus(x))))))):h('p',{class:'state'},'Chưa có lớp phù hợp.'))}
